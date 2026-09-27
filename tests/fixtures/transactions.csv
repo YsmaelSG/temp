@@ -1,0 +1,5 @@
+id,account_id,type,amount_cents,description,created_at
+txn_2,acc_1,debit,1250,Chipotle,2026-08-03T12:00:00Z
+txn_1,acc_1,credit,100000,Paycheck,2026-08-01T08:00:00Z
+txn_4,acc_2,credit,5000,Transfer,2026-08-02T10:00:00Z
+txn_3,acc_1,debit,4000,Publix,2026-09-05T18:30:00Z

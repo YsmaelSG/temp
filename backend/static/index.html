@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ledger</title>
+<style>
+  :root { --bg:#f6f5fb; --card:#fff; --ink:#1d1b2e; --muted:#6b6880; --accent:#632ca6; --line:#e4e1ef; --red:#b3261e; --green:#1b7a3d; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, -apple-system, sans-serif; background:var(--bg); color:var(--ink); }
+  header { background:var(--accent); color:#fff; padding:14px 24px; font-weight:600; font-size:18px; }
+  main { display:grid; grid-template-columns: 260px 1fr; gap:20px; padding:20px 24px; max-width:1100px; margin:0 auto; }
+  @media (max-width: 760px) { main { grid-template-columns: 1fr; padding:16px; } }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; }
+  .acct { padding:10px; border-radius:8px; cursor:pointer; margin-bottom:6px; border:1px solid transparent; }
+  .acct:hover { background:#f1edf9; }
+  .acct.active { border-color:var(--accent); background:#f1edf9; }
+  .acct small { color:var(--muted); display:block; }
+  h2 { margin:0 0 4px; font-size:20px; }
+  .balance { font-size:28px; font-weight:700; margin:6px 0 16px; }
+  .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:12px; }
+  select, input, button { font:inherit; padding:6px 10px; border:1px solid var(--line); border-radius:6px; }
+  button { background:var(--accent); color:#fff; border:none; cursor:pointer; }
+  button.secondary { background:#fff; color:var(--accent); border:1px solid var(--accent); }
+  table { width:100%; border-collapse:collapse; font-size:14px; }
+  th, td { text-align:left; padding:8px 6px; border-bottom:1px solid var(--line); }
+  th { color:var(--muted); font-weight:500; }
+  td.amt { text-align:right; font-variant-numeric: tabular-nums; }
+  .credit { color:var(--green); } .debit { color:var(--red); }
+  .err { color:var(--red); font-size:14px; min-height:18px; }
+  .muted { color:var(--muted); font-size:14px; }
+</style>
+</head>
+<body>
+<header>Ledger</header>
+<main>
+  <section class="card">
+    <div class="muted" style="margin-bottom:8px">Accounts</div>
+    <div id="accounts"></div>
+  </section>
+
+  <section>
+    <div class="card" id="detail">
+      <div class="muted">Select an account</div>
+    </div>
+  </section>
+</main>
+
+<script>
+// The frontend only talks to the backend through /api/* JSON endpoints.
+const fmt = cents => (cents / 100).toLocaleString("en-US", { style: "currency", currency: "USD" });
+let current = null, nextCursor = null;
+
+async function api(path, opts = {}) {
+  const res = await fetch("/api" + path, { ...opts, headers: { "Content-Type": "application/json", ...(opts.headers || {}) } });
+  const body = res.status === 204 ? null : await res.json();
+  if (!res.ok) throw new Error(body?.error?.message || res.statusText);
+  return body;
+}
+
+async function loadAccounts() {
+  const { data } = await api("/accounts");
+  const el = document.getElementById("accounts");
+  el.innerHTML = "";
+  for (const a of data) {
+    const div = document.createElement("div");
+    div.className = "acct" + (current === a.id ? " active" : "");
+    div.innerHTML = `<b>${a.name}</b><small>${a.owner_name} · ${fmt(a.balance_cents)}</small>`;
+    div.onclick = () => selectAccount(a.id);
+    el.appendChild(div);
+  }
+}
+
+async function selectAccount(id) {
+  current = id;
+  const a = await api(`/accounts/${id}`);
+  document.getElementById("detail").innerHTML = `
+    <h2>${a.name}</h2><div class="muted">${a.owner_name} · ${a.id}</div>
+    <div class="balance">${fmt(a.balance_cents)}</div>
+    <div class="row">
+      <select id="ntype"><option value="debit">Debit</option><option value="credit">Credit</option></select>
+      <input id="namount" type="number" step="0.01" min="0.01" placeholder="Amount ($)" style="width:120px">
+      <input id="ndesc" placeholder="Description" maxlength="140">
+      <button id="nsubmit">Add transaction</button>
+    </div>
+    <div class="err" id="nerr"></div>
+    <div class="row">
+      <span class="muted">Filter:</span>
+      <select id="filter"><option value="">All</option><option value="credit">Credits</option><option value="debit">Debits</option></select>
+    </div>
+    <table><thead><tr><th>Date</th><th>Description</th><th>Type</th><th class="amt">Amount</th></tr></thead><tbody id="rows"></tbody></table>
+    <div class="row" style="margin-top:12px"><button class="secondary" id="more">Load more</button></div>`;
+  document.getElementById("filter").onchange = () => loadTransactions(true);
+  document.getElementById("more").onclick = () => loadTransactions(false);
+  document.getElementById("nsubmit").onclick = createTransaction;
+  await loadTransactions(true);
+  loadAccounts();
+}
+
+async function loadTransactions(reset) {
+  if (reset) { nextCursor = null; document.getElementById("rows").innerHTML = ""; }
+  const params = new URLSearchParams({ limit: "10" });
+  const type = document.getElementById("filter").value;
+  if (type) params.set("type", type);
+  if (nextCursor) params.set("cursor", nextCursor);
+  const { data, next_cursor } = await api(`/accounts/${current}/transactions?${params}`);
+  const tbody = document.getElementById("rows");
+  for (const t of data) {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${t.created_at.slice(0, 10)}</td><td>${t.description}</td><td class="${t.type}">${t.type}</td>
+      <td class="amt ${t.type}">${t.type === "debit" ? "-" : "+"}${fmt(t.amount_cents)}</td>`;
+    tbody.appendChild(tr);
+  }
+  nextCursor = next_cursor;
+  document.getElementById("more").style.display = nextCursor ? "" : "none";
+}
+
+async function createTransaction() {
+  const err = document.getElementById("nerr");
+  err.textContent = "";
+  const dollars = parseFloat(document.getElementById("namount").value);
+  const body = {
+    account_id: current,
+    type: document.getElementById("ntype").value,
+    amount_cents: Math.round(dollars * 100),
+    description: document.getElementById("ndesc").value,
+  };
+  try {
+    // One key per click, so a network retry of this request can't double-post.
+    await api("/transactions", { method: "POST", body: JSON.stringify(body), headers: { "Idempotency-Key": crypto.randomUUID() } });
+    await selectAccount(current);
+  } catch (e) { err.textContent = e.message; }
+}
+
+loadAccounts();
+</script>
+</body>
+</html>

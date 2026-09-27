@@ -1,0 +1,95 @@
+id,account_id,type,amount_cents,description,created_at
+txn_0064,acc_3,debit,4545,Uber,2026-08-08T19:38:00Z
+txn_0049,acc_3,debit,4431,Target,2026-07-13T17:23:00Z
+txn_0050,acc_3,debit,2311,Uber,2026-07-05T21:31:00Z
+txn_0023,acc_1,debit,5439,Spotify,2026-08-12T19:22:00Z
+txn_0044,acc_1,debit,2100,MARTA Breeze,2026-09-12T17:03:00Z
+txn_0070,acc_3,debit,1688,Kroger,2026-08-23T09:58:00Z
+txn_0031,acc_1,credit,185000,Paycheck,2026-09-01T08:00:00Z
+txn_0080,acc_3,debit,7406,MARTA Breeze,2026-09-08T21:55:00Z
+txn_0055,acc_3,debit,742,Shell Gas,2026-07-26T16:19:00Z
+txn_0002,acc_1,debit,2770,Kroger,2026-07-14T18:03:00Z
+txn_0073,acc_3,debit,7887,Starbucks,2026-08-14T19:05:00Z
+txn_0053,acc_3,debit,8140,Steam,2026-07-24T10:33:00Z
+txn_0045,acc_1,debit,302,Chipotle,2026-09-20T10:34:00Z
+txn_0041,acc_1,debit,6727,Target,2026-09-14T14:25:00Z
+txn_0085,acc_3,debit,8765,Uber,2026-09-15T21:58:00Z
+txn_0040,acc_1,debit,1183,Spotify,2026-09-16T22:55:00Z
+txn_0022,acc_1,debit,941,Starbucks,2026-08-23T09:48:00Z
+txn_0019,acc_1,debit,8410,Spotify,2026-08-12T19:28:00Z
+txn_0071,acc_3,debit,3564,Starbucks,2026-08-17T22:11:00Z
+txn_0018,acc_1,debit,4298,MARTA Breeze,2026-08-04T17:19:00Z
+txn_0087,acc_3,debit,605,Spotify,2026-09-16T20:11:00Z
+txn_0001,acc_1,credit,185000,Paycheck,2026-07-01T08:00:00Z
+txn_0037,acc_1,debit,8244,Publix,2026-09-20T10:16:00Z
+txn_0003,acc_1,debit,1841,Chipotle,2026-07-13T17:03:00Z
+txn_0059,acc_3,debit,5700,Spotify,2026-07-22T11:39:00Z
+txn_0012,acc_1,debit,95000,Rent - Home Park,2026-07-13T09:35:00Z
+txn_0038,acc_1,debit,366,Steam,2026-09-06T14:34:00Z
+txn_0052,acc_3,debit,1973,MARTA Breeze,2026-07-25T13:47:00Z
+txn_0033,acc_1,debit,4851,Starbucks,2026-09-06T21:27:00Z
+txn_0084,acc_3,debit,1296,MARTA Breeze,2026-09-25T13:57:00Z
+txn_0047,acc_3,debit,6256,Chipotle,2026-07-21T08:04:00Z
+txn_0054,acc_3,debit,3661,Publix,2026-07-18T13:09:00Z
+txn_0035,acc_1,debit,6532,Target,2026-09-09T10:05:00Z
+txn_0039,acc_1,debit,5519,Kroger,2026-09-06T19:54:00Z
+txn_0011,acc_1,debit,1987,MARTA Breeze,2026-07-20T17:40:00Z
+txn_0067,acc_3,debit,95000,Rent - Home Park,2026-08-17T11:21:00Z
+txn_0060,acc_3,debit,95000,Rent - Home Park,2026-07-27T11:52:00Z
+txn_0007,acc_1,debit,1312,Target,2026-07-20T17:25:00Z
+txn_0015,acc_1,debit,5445,Starbucks,2026-07-16T17:59:00Z
+txn_0030,acc_1,debit,2418,Steam,2026-08-25T11:25:00Z
+txn_0063,acc_3,debit,773,Kroger,2026-08-02T20:17:00Z
+txn_0017,acc_1,debit,6223,Uber,2026-08-11T11:50:00Z
+txn_0048,acc_3,debit,95000,Rent - Home Park,2026-07-21T14:09:00Z
+txn_0024,acc_1,debit,8436,Waffle House,2026-08-20T20:29:00Z
+txn_0051,acc_3,debit,8169,Uber,2026-07-17T12:05:00Z
+txn_0077,acc_3,debit,8070,Waffle House,2026-09-23T22:22:00Z
+txn_0046,acc_3,credit,290000,Paycheck,2026-07-01T08:00:00Z
+txn_0010,acc_1,debit,5353,Chipotle,2026-07-19T21:43:00Z
+txn_0061,acc_3,credit,290000,Paycheck,2026-08-01T08:00:00Z
+txn_0020,acc_1,debit,1498,Steam,2026-08-05T16:26:00Z
+txn_0056,acc_3,debit,1790,Target,2026-07-24T21:16:00Z
+txn_0091,acc_2,credit,50000,Transfer from checking,2026-07-02T10:00:00Z
+txn_0078,acc_3,debit,2445,MARTA Breeze,2026-09-02T08:51:00Z
+txn_0028,acc_1,debit,5984,Target,2026-08-02T15:22:00Z
+txn_0016,acc_1,credit,185000,Paycheck,2026-08-01T08:00:00Z
+txn_0043,acc_1,debit,95000,Rent - Home Park,2026-09-04T11:28:00Z
+txn_0005,acc_1,debit,1443,Starbucks,2026-07-09T09:35:00Z
+txn_0021,acc_1,debit,5903,MARTA Breeze,2026-08-06T22:31:00Z
+txn_0029,acc_1,debit,2217,MARTA Breeze,2026-08-17T08:13:00Z
+txn_0094,acc_2,credit,37,Interest,2026-08-31T23:59:00Z
+txn_0089,acc_3,debit,2618,MARTA Breeze,2026-09-17T17:46:00Z
+txn_0027,acc_1,debit,7600,Steam,2026-08-11T19:24:00Z
+txn_0079,acc_3,debit,1982,Shell Gas,2026-09-18T19:59:00Z
+txn_0081,acc_3,debit,95000,Rent - Home Park,2026-09-02T12:13:00Z
+txn_0074,acc_3,debit,2901,Shell Gas,2026-08-07T10:01:00Z
+txn_0034,acc_1,debit,4860,Spotify,2026-09-24T14:22:00Z
+txn_0088,acc_3,debit,363,Waffle House,2026-09-26T20:09:00Z
+txn_0076,acc_3,credit,290000,Paycheck,2026-09-01T08:00:00Z
+txn_0092,acc_2,credit,50000,Transfer from checking,2026-08-02T10:00:00Z
+txn_0069,acc_3,debit,330,Waffle House,2026-08-17T22:41:00Z
+txn_0075,acc_3,debit,7923,MARTA Breeze,2026-08-27T18:09:00Z
+txn_0082,acc_3,debit,8510,Steam,2026-09-09T20:37:00Z
+txn_0086,acc_3,debit,2441,Spotify,2026-09-19T10:33:00Z
+txn_0026,acc_1,debit,1363,Target,2026-08-03T19:44:00Z
+txn_0066,acc_3,debit,6273,Kroger,2026-08-04T11:06:00Z
+txn_0083,acc_3,debit,4548,Kroger,2026-09-19T14:53:00Z
+txn_0042,acc_1,debit,8188,Chipotle,2026-09-22T14:03:00Z
+txn_0057,acc_3,debit,6307,Spotify,2026-07-07T13:49:00Z
+txn_0009,acc_1,debit,5043,MARTA Breeze,2026-07-15T10:34:00Z
+txn_0004,acc_1,debit,3816,Spotify,2026-07-03T09:27:00Z
+txn_0090,acc_3,debit,1310,Chipotle,2026-09-12T18:33:00Z
+txn_0058,acc_3,debit,95000,Rent - Home Park,2026-07-19T16:49:00Z
+txn_0065,acc_3,debit,7626,Kroger,2026-08-27T22:46:00Z
+txn_0013,acc_1,debit,1327,Shell Gas,2026-07-20T08:39:00Z
+txn_0006,acc_1,debit,1267,Starbucks,2026-07-20T09:14:00Z
+txn_0036,acc_1,debit,2777,MARTA Breeze,2026-09-09T18:14:00Z
+txn_0025,acc_1,debit,1832,Chipotle,2026-08-10T15:44:00Z
+txn_0032,acc_1,debit,8433,Starbucks,2026-09-04T10:28:00Z
+txn_0008,acc_1,debit,3921,Publix,2026-07-03T16:54:00Z
+txn_0093,acc_2,credit,50000,Transfer from checking,2026-09-02T10:00:00Z
+txn_0014,acc_1,debit,95000,Rent - Home Park,2026-07-17T18:34:00Z
+txn_0062,acc_3,debit,4013,Starbucks,2026-08-08T16:31:00Z
+txn_0072,acc_3,debit,5746,Starbucks,2026-08-04T20:46:00Z
+txn_0068,acc_3,debit,95000,Rent - Home Park,2026-08-17T17:57:00Z
