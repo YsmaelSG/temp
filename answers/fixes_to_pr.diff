@@ -1,0 +1,193 @@
+diff --git a/backend/app.py b/backend/app.py
+index 1ec2c3f..3f51cf8 100644
+--- a/backend/app.py
++++ b/backend/app.py
+@@ -3,8 +3,8 @@
+ Run:  python backend/app.py   then open http://localhost:5000
+ """
+ import base64
+-import json
+ import os
++import re
+ 
+ from flask import Blueprint, Flask, jsonify, request, send_from_directory
+ 
+@@ -71,24 +71,20 @@ def list_account_transactions(account_id):
+     })
+ 
+ 
++MONTH_RE = re.compile(r"^\d{4}-(0[1-9]|1[0-2])$")
++
++
+ @bp.get("/accounts/<account_id>/summary")
+ def spending_summary(account_id):
+     store = get_store()
+-    account = store.accounts[account_id]
+-    month = request.args.get("month", "")
+-    print("summary for", account_id, month)
+-
+-    totals = {}
+-    for category in CATEGORIES:
+-        totals[category] = 0
+-        for txn in store.list_all_transactions():
+-            if (
+-                txn.account_id == account_id
+-                and txn.category == category
+-                and txn.created_at.startswith(month)
+-            ):
+-                totals[category] += txn.amount_cents
++    account = store.get_account(account_id)
++    if account is None:
++        raise APIError(404, "not_found", f"Account {account_id} not found")
++    month = request.args.get("month")
++    if month is None or not MONTH_RE.match(month):
++        raise APIError(400, "invalid_month", "'month' is required, formatted YYYY-MM")
+ 
++    totals = store.spending_by_category(account_id, month)
+     return jsonify({
+         "account_id": account_id,
+         "month": month,
+@@ -110,8 +106,15 @@ def get_transaction(txn_id):
+ 
+ @bp.patch("/transactions/<txn_id>")
+ def update_transaction(txn_id):
+-    body = request.get_json()
+-    txn = get_store().update_transaction(txn_id, body)
++    body = request.get_json(silent=True)
++    if not isinstance(body, dict):
++        raise APIError(400, "invalid_body", "Request body must be a JSON object")
++    if set(body) != {"category"}:
++        raise APIError(422, "immutable_field", "Only 'category' can be changed")
++    if body["category"] not in CATEGORIES:
++        raise APIError(422, "invalid_category", f"'category' must be one of {list(CATEGORIES)}")
++
++    txn = get_store().set_category(txn_id, body["category"])
+     if txn is None:
+         raise APIError(404, "not_found", f"Transaction {txn_id} not found")
+     return jsonify(txn.to_dict())
+diff --git a/backend/models.py b/backend/models.py
+index e7209f7..f9521ed 100644
+--- a/backend/models.py
++++ b/backend/models.py
+@@ -31,6 +31,4 @@ class Transaction:
+         return self.amount_cents if self.type == "credit" else -self.amount_cents
+ 
+     def to_dict(self) -> dict:
+-        d = asdict(self)
+-        d["date"] = d.pop("created_at")  # clearer name for the upcoming frontend PR
+-        return d
++        return asdict(self)
+diff --git a/backend/store.py b/backend/store.py
+index c8b2503..34984cc 100644
+--- a/backend/store.py
++++ b/backend/store.py
+@@ -10,10 +10,11 @@ import threading
+ import uuid
+ from datetime import datetime, timezone
+ 
+-from models import Account, Transaction
++from models import CATEGORIES, Account, Transaction
+ 
+ ACCOUNT_FIELDS = ["id", "owner_name", "name", "currency", "created_at"]
+-TXN_FIELDS = ["id", "account_id", "type", "amount_cents", "description", "created_at"]
++TXN_FIELDS = ["id", "account_id", "type", "amount_cents", "description", "created_at", "category"]
++CATEGORY_CHANGE_FIELDS = ["txn_id", "category", "changed_at"]
+ 
+ 
+ class Store:
+@@ -50,7 +51,11 @@ class Store:
+                 self.txn_ids_by_account[acct.id] = []
+ 
+         with open(self._path("transactions.csv"), newline="") as f:
+-            rows = list(csv.DictReader(f))
++            reader = csv.DictReader(f)
++            rows = list(reader)
++            has_category_column = "category" in (reader.fieldnames or [])
++        if not has_category_column:
++            self._migrate_add_category_column(rows)
+         rows.sort(key=lambda r: r["created_at"])
+         for row in rows:
+             txn = Transaction(
+@@ -64,6 +69,25 @@ class Store:
+             )
+             self._index(txn)
+ 
++        # Category changes are an append-only log, replayed in order (last write wins).
++        path = self._path("category_changes.csv")
++        if os.path.exists(path):
++            with open(path, newline="") as f:
++                for row in csv.DictReader(f):
++                    if row["txn_id"] in self.transactions:
++                        self.transactions[row["txn_id"]].category = row["category"]
++
++    def _migrate_add_category_column(self, rows: list[dict]) -> None:
++        """One-time backfill: existing rows get category 'other'. Atomic rewrite."""
++        for row in rows:
++            row["category"] = "other"
++        tmp = self._path("transactions.csv.tmp")
++        with open(tmp, "w", newline="") as f:
++            writer = csv.DictWriter(f, fieldnames=TXN_FIELDS)
++            writer.writeheader()
++            writer.writerows(rows)
++        os.replace(tmp, self._path("transactions.csv"))
++
+     def _index(self, txn: Transaction) -> None:
+         self.transactions[txn.id] = txn
+         self.txn_ids_by_account[txn.account_id].append(txn.id)
+@@ -122,16 +146,37 @@ class Store:
+                 )
+             return txn
+ 
+-    def list_all_transactions(self) -> list[Transaction]:
+-        return list(self.transactions.values())
++    def spending_by_category(self, account_id: str, month: str) -> dict[str, int]:
++        """Debit totals per category for one account in one month (YYYY-MM).
+ 
+-    def update_transaction(self, txn_id: str, fields: dict) -> Transaction | None:
+-        txn = self.transactions.get(txn_id)
+-        if txn is None:
+-            return None
+-        for key, value in fields.items():
+-            setattr(txn, key, value)
+-        return txn
++        Only touches this account's transactions via the per-account index,
++        in a single pass.
++        """
++        totals = {c: 0 for c in CATEGORIES}
++        for txn_id in self.txn_ids_by_account[account_id]:
++            txn = self.transactions[txn_id]
++            if txn.type == "debit" and txn.created_at.startswith(month + "-"):
++                totals[txn.category] += txn.amount_cents
++        return totals
++
++    def set_category(self, txn_id: str, category: str) -> Transaction | None:
++        with self._lock:
++            txn = self.transactions.get(txn_id)
++            if txn is None:
++                return None
++            path = self._path("category_changes.csv")
++            is_new = not os.path.exists(path)
++            with open(path, "a", newline="") as f:
++                writer = csv.DictWriter(f, fieldnames=CATEGORY_CHANGE_FIELDS)
++                if is_new:
++                    writer.writeheader()
++                writer.writerow({
++                    "txn_id": txn_id,
++                    "category": category,
++                    "changed_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
++                })
++            txn.category = category  # memory updated only after the write succeeds
++            return txn
+ 
+     def get_idempotent_result(self, key: str) -> tuple[int, dict] | None:
+         return self.idempotency_results.get(key)
+diff --git a/tests/test_categories.py b/tests/test_categories.py
+index dc12e62..33ec5b0 100644
+--- a/tests/test_categories.py
++++ b/tests/test_categories.py
+@@ -25,4 +25,4 @@ def test_monthly_summary(client):
+     assert res.status_code == 200
+     body = res.get_json()
+     assert body["totals_cents"]["dining"] == 1250
+-    assert body["total_spent_cents"] == 101250
++    assert body["total_spent_cents"] == 1250  # debits only; the paycheck is a credit

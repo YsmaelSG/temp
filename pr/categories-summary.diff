@@ -1,0 +1,230 @@
+diff --git a/backend/app.py b/backend/app.py
+index 3ef3794..1ec2c3f 100644
+--- a/backend/app.py
++++ b/backend/app.py
+@@ -3,10 +3,12 @@
+ Run:  python backend/app.py   then open http://localhost:5000
+ """
+ import base64
++import json
+ import os
+ 
+ from flask import Blueprint, Flask, jsonify, request, send_from_directory
+ 
++from models import CATEGORIES
+ from store import Store
+ from validators import APIError, parse_limit, validate_new_transaction
+ 
+@@ -69,6 +71,33 @@ def list_account_transactions(account_id):
+     })
+ 
+ 
++@bp.get("/accounts/<account_id>/summary")
++def spending_summary(account_id):
++    store = get_store()
++    account = store.accounts[account_id]
++    month = request.args.get("month", "")
++    print("summary for", account_id, month)
++
++    totals = {}
++    for category in CATEGORIES:
++        totals[category] = 0
++        for txn in store.list_all_transactions():
++            if (
++                txn.account_id == account_id
++                and txn.category == category
++                and txn.created_at.startswith(month)
++            ):
++                totals[category] += txn.amount_cents
++
++    return jsonify({
++        "account_id": account_id,
++        "month": month,
++        "currency": account.currency,
++        "totals_cents": totals,
++        "total_spent_cents": sum(totals.values()),
++    })
++
++
+ # ---------- transactions ----------
+ 
+ @bp.get("/transactions/<txn_id>")
+@@ -79,6 +108,15 @@ def get_transaction(txn_id):
+     return jsonify(txn.to_dict())
+ 
+ 
++@bp.patch("/transactions/<txn_id>")
++def update_transaction(txn_id):
++    body = request.get_json()
++    txn = get_store().update_transaction(txn_id, body)
++    if txn is None:
++        raise APIError(404, "not_found", f"Transaction {txn_id} not found")
++    return jsonify(txn.to_dict())
++
++
+ @bp.post("/transactions")
+ def create_transaction():
+     store = get_store()
+@@ -104,6 +142,7 @@ def create_transaction():
+         txn_type=data["type"],
+         amount_cents=data["amount_cents"],
+         description=data["description"],
++        category=data["category"],
+     )
+     body = txn.to_dict()
+     if idem_key:
+diff --git a/backend/models.py b/backend/models.py
+index 7f6cc29..e7209f7 100644
+--- a/backend/models.py
++++ b/backend/models.py
+@@ -1,6 +1,7 @@
+ from dataclasses import dataclass, asdict
+ 
+ TXN_TYPES = ("credit", "debit")
++CATEGORIES = ("groceries", "dining", "transport", "housing", "entertainment", "other")
+ 
+ 
+ @dataclass
+@@ -24,9 +25,12 @@ class Transaction:
+     amount_cents: int  # always positive; direction comes from `type`
+     description: str
+     created_at: str    # ISO-8601 UTC, e.g. 2026-09-01T14:03:00Z
++    category: str = "other"
+ 
+     def signed_amount(self) -> int:
+         return self.amount_cents if self.type == "credit" else -self.amount_cents
+ 
+     def to_dict(self) -> dict:
+-        return asdict(self)
++        d = asdict(self)
++        d["date"] = d.pop("created_at")  # clearer name for the upcoming frontend PR
++        return d
+diff --git a/backend/store.py b/backend/store.py
+index 72e3b92..c8b2503 100644
+--- a/backend/store.py
++++ b/backend/store.py
+@@ -60,6 +60,7 @@ class Store:
+                 amount_cents=int(row["amount_cents"]),  # CSV gives strings
+                 description=row["description"],
+                 created_at=row["created_at"],
++                category=row.get("category") or "other",
+             )
+             self._index(txn)
+ 
+@@ -101,7 +102,8 @@ class Store:
+     # ---------- writes ----------
+ 
+     def create_transaction(
+-        self, account_id: str, txn_type: str, amount_cents: int, description: str
++        self, account_id: str, txn_type: str, amount_cents: int, description: str,
++        category: str = "other",
+     ) -> Transaction:
+         with self._lock:
+             txn = Transaction(
+@@ -111,6 +113,7 @@ class Store:
+                 amount_cents=amount_cents,
+                 description=description,
+                 created_at=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
++                category=category,
+             )
+             self._index(txn)
+             with open(self._path("transactions.csv"), "a", newline="") as f:
+@@ -119,6 +122,17 @@ class Store:
+                 )
+             return txn
+ 
++    def list_all_transactions(self) -> list[Transaction]:
++        return list(self.transactions.values())
++
++    def update_transaction(self, txn_id: str, fields: dict) -> Transaction | None:
++        txn = self.transactions.get(txn_id)
++        if txn is None:
++            return None
++        for key, value in fields.items():
++            setattr(txn, key, value)
++        return txn
++
+     def get_idempotent_result(self, key: str) -> tuple[int, dict] | None:
+         return self.idempotency_results.get(key)
+ 
+diff --git a/backend/validators.py b/backend/validators.py
+index 0c29d69..2fb2e09 100644
+--- a/backend/validators.py
++++ b/backend/validators.py
+@@ -1,4 +1,4 @@
+-from models import TXN_TYPES
++from models import CATEGORIES, TXN_TYPES
+ 
+ MAX_AMOUNT_CENTS = 1_000_000_00  # $1,000,000
+ MAX_DESCRIPTION_LEN = 140
+@@ -36,11 +36,16 @@ def validate_new_transaction(body) -> dict:
+     if not isinstance(description, str) or len(description) > MAX_DESCRIPTION_LEN:
+         raise APIError(422, "invalid_description", f"'description' must be a string of at most {MAX_DESCRIPTION_LEN} chars")
+ 
++    category = body.get("category", "other")
++    if category not in CATEGORIES:
++        raise APIError(422, "invalid_category", f"'category' must be one of {list(CATEGORIES)}")
++
+     return {
+         "account_id": body["account_id"],
+         "type": body["type"],
+         "amount_cents": amount,
+         "description": description.strip(),
++        "category": category,
+     }
+ 
+ 
+diff --git a/docs/PR_DESCRIPTION.md b/docs/PR_DESCRIPTION.md
+new file mode 100644
+index 0000000..8c14d89
+--- /dev/null
++++ b/docs/PR_DESCRIPTION.md
+@@ -0,0 +1,14 @@
++# PR #42: Transaction categories + monthly spending summary
++
++Implements `docs/SPEC_categories.md`.
++
++## Changes
++- `Transaction` gets a `category` field (defaults to `other`, so existing rows load fine)
++- `POST /api/transactions` accepts an optional `category`, validated against the allowed list
++- New `PATCH /api/transactions/<id>` to re-categorize a transaction
++- New `GET /api/accounts/<id>/summary?month=YYYY-MM` with per-category totals
++- Renamed `created_at` → `date` in transaction responses; the frontend PR will use this name
++- Tests for create, re-categorize, and summary
++
++## Testing
++`pytest` passes (15 tests). Also tried the summary endpoint locally with curl.
+diff --git a/tests/test_categories.py b/tests/test_categories.py
+new file mode 100644
+index 0000000..dc12e62
+--- /dev/null
++++ b/tests/test_categories.py
+@@ -0,0 +1,28 @@
++def test_create_with_category(client):
++    res = client.post("/api/transactions", json={
++        "account_id": "acc_1", "type": "debit", "amount_cents": 800, "category": "dining",
++    })
++    assert res.status_code == 201
++    assert res.get_json()["category"] == "dining"
++
++
++def test_create_with_invalid_category(client):
++    res = client.post("/api/transactions", json={
++        "account_id": "acc_1", "type": "debit", "amount_cents": 800, "category": "pizza",
++    })
++    assert res.status_code == 422
++
++
++def test_recategorize_transaction(client):
++    res = client.patch("/api/transactions/txn_2", json={"category": "dining"})
++    assert res.status_code == 200
++    assert res.get_json()["category"] == "dining"
++
++
++def test_monthly_summary(client):
++    client.patch("/api/transactions/txn_2", json={"category": "dining"})
++    res = client.get("/api/accounts/acc_1/summary?month=2026-08")
++    assert res.status_code == 200
++    body = res.get_json()
++    assert body["totals_cents"]["dining"] == 1250
++    assert body["total_spent_cents"] == 101250

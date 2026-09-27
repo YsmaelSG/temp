@@ -93,3 +93,4 @@ txn_0014,acc_1,debit,95000,Rent - Home Park,2026-07-17T18:34:00Z
 txn_0062,acc_3,debit,4013,Starbucks,2026-08-08T16:31:00Z
 txn_0072,acc_3,debit,5746,Starbucks,2026-08-04T20:46:00Z
 txn_0068,acc_3,debit,95000,Rent - Home Park,2026-08-17T17:57:00Z
+txn_b2c5dac849e4,acc_1,debit,50000,food,2026-09-27T22:24:13Z
